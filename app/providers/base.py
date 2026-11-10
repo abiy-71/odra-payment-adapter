@@ -10,5 +10,5 @@ class PaymentProvider(ABC):
         pass
     
     @abstractmethod
-    def handle_callback(self, request):
+    async def handle_callback(self, request):
         pass
