@@ -31,7 +31,8 @@ class ChapaProvider(PaymentProvider):
         response = httpx.post(
             url,
             json=payload,
-            headers=headers
+            headers=headers,
+            timeout=10.0
         )
 
         response.raise_for_status()
@@ -58,7 +59,8 @@ class ChapaProvider(PaymentProvider):
 
         response = httpx.get(
             url,
-            headers=headers
+            headers=headers,
+            timeout=10.0
         )
 
         response.raise_for_status()
@@ -71,7 +73,10 @@ class ChapaProvider(PaymentProvider):
 
     async def handle_callback(self, request: Request):
         callback_data = await request.json()
-        provider_ref = callback_data["trx_ref"]
+        provider_ref = callback_data.get("trx_ref")
+
+        if not provider_ref:
+            raise ValueError("Transaction reference is required.")
 
         verified_data = self.verify_payment(provider_ref)
 
