@@ -80,4 +80,10 @@ class ChapaProvider(PaymentProvider):
 
         verified_data = self.verify_payment(provider_ref)
 
+        if verified_data.get("tx_ref") != provider_ref:
+            raise ValueError("The transaction references don't match.")
+
+        if verified_data.get("status") != "success":
+            raise ValueError("Payment was not successful.")
+
         return verified_data

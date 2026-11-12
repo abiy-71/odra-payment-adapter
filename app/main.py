@@ -7,6 +7,8 @@ from decimal import Decimal
 
 app = FastAPI()
 
+payments = {}
+
 class Order(BaseModel):
     order_id: int = Field(gt=0)
     amount: Decimal = Field(gt=0)
@@ -43,6 +45,12 @@ def initialize_payment(order: Order):
             detail="Unable to connect to payment gateway"
         )
 
+    payments[result["tx_ref"]] = {
+        "order_id": order.order_id,
+        "amount": order.amount,
+        "currency": "ETB"
+    }
+
     return result
 
 @app.post("/payments/callback")
@@ -76,9 +84,81 @@ async def callback(request: Request):
             detail="Unable to connect to payment gateway"
         )
 
+    payment = payments.get(verified_data["tx_ref"])
+
+    if payment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Payment record not found."
+        )
+
+    if Decimal(str(verified_data["amount"])) != payment["amount"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment amount does not match the original order."
+        )
+    
+    if verified_data["currency"] != payment["currency"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment currency does not match the original order."
+        )
+
     return verified_data
 
+@app.get("/payments/{tx_ref}")
+def get_payment(tx_ref: str):
+    payment = payments.get(tx_ref)
+
+    if payment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Payment not found!"
+        )
+
+    provider = ChapaProvider()
+
+    try:
+        verified_data = provider.verify_payment(tx_ref)
     
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="Payment gateway request timed out."
+        )
+
+    except httpx.HTTPStatusError:
+        raise HTTPException(
+            status_code=502,
+            detail="Payment gateway returned an unsuccessful response."
+        )
+
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to connect to payment gateway"
+        )
+
+    if verified_data["tx_ref"] != tx_ref:
+        raise HTTPException(
+            status_code=400,
+            detail="Transaction reference does not match."
+        )
+
+    if Decimal(str(verified_data["amount"])) != payment["amount"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment amount does not match the original order."
+        )
+    
+    if verified_data["currency"] != payment["currency"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment currency does not match the original order."
+        )
+
+    return verified_data
+
 
 
 
