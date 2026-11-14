@@ -1,20 +1,15 @@
 import httpx
-from app.providers.chapa import ChapaProvider
-from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel, Field
+
 from decimal import Decimal
+from fastapi import FastAPI, HTTPException, Request
+
+from app.models.order import Order
+from app.providers.chapa import ChapaProvider
 
 
 app = FastAPI()
 
 payments = {}
-
-class Order(BaseModel):
-    order_id: int = Field(gt=0)
-    amount: Decimal = Field(gt=0)
-    email: str
-    first_name: str
-    last_name: str
 
 @app.get("/health")
 def health_check():
@@ -158,7 +153,3 @@ def get_payment(tx_ref: str):
         )
 
     return verified_data
-
-
-
-
